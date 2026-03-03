@@ -476,7 +476,7 @@ static void handlePush(VMContext* ctx, uint32_t instr, const uint8_t* extraData)
     }
 }
 
-static void handlePushLoc(VMContext* ctx, uint32_t instr, const uint8_t* extraData) {
+static void handlePushScoped(VMContext* ctx, uint32_t instr, const uint8_t* extraData, ArrayMapEntry* variableMap, uint32_t count, RValue* variables) {
     (void) instr;
     uint32_t varRef = resolveVarOperand(ctx, extraData);
     Variable* varDef = resolveVarDef(ctx, varRef);
@@ -490,38 +490,22 @@ static void handlePushLoc(VMContext* ctx, uint32_t instr, const uint8_t* extraDa
             RValue stacktop = stackPop(&ctx->stack);
             RValue_free(&stacktop);
         }
-        stackPush(&ctx->stack, arrayMapGet(ctx->localArrayMap, varDef->varID, arrayIndex));
+        stackPush(&ctx->stack, arrayMapGet(variableMap, varDef->varID, arrayIndex));
         return;
     }
 
-    require(ctx->localVarCount > (uint32_t) varDef->varID);
-    RValue locVal = ctx->localVars[varDef->varID];
-    locVal.ownsString = false; // Non-owning copy
-    stackPush(&ctx->stack, locVal);
+    require(count > (uint32_t) varDef->varID);
+    RValue glbVal = variables[varDef->varID];
+    glbVal.ownsString = false; // Non-owning copy
+    stackPush(&ctx->stack, glbVal);
+}
+
+static void handlePushLoc(VMContext* ctx, uint32_t instr, const uint8_t* extraData) {
+    handlePushScoped(ctx, instr, extraData, ctx->localArrayMap, ctx->localVarCount, ctx->localVars);
 }
 
 static void handlePushGlb(VMContext* ctx, uint32_t instr, const uint8_t* extraData) {
-    (void) instr;
-    uint32_t varRef = resolveVarOperand(ctx, extraData);
-    Variable* varDef = resolveVarDef(ctx, varRef);
-
-    uint8_t varType = (varRef >> 24) & 0xFF;
-    if (varType == VARTYPE_ARRAY || varType == VARTYPE_STACKTOP) {
-        RValue indexVal = stackPop(&ctx->stack);
-        int32_t arrayIndex = RValue_toInt32(indexVal);
-        RValue_free(&indexVal);
-        if (varType == VARTYPE_STACKTOP) {
-            RValue stacktop = stackPop(&ctx->stack);
-            RValue_free(&stacktop);
-        }
-        stackPush(&ctx->stack, arrayMapGet(ctx->globalArrayMap, varDef->varID, arrayIndex));
-        return;
-    }
-
-    require(ctx->globalVarCount > (uint32_t) varDef->varID);
-    RValue glbVal = ctx->globalVars[varDef->varID];
-    glbVal.ownsString = false; // Non-owning copy
-    stackPush(&ctx->stack, glbVal);
+    handlePushScoped(ctx, instr, extraData, ctx->globalArrayMap, ctx->globalVarCount, ctx->globalVars);
 }
 
 static void handlePushBltn(VMContext* ctx, uint32_t instr, const uint8_t* extraData) {
