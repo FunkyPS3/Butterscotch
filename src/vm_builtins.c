@@ -625,11 +625,7 @@ static RValue builtinRandomize(VMContext* ctx, RValue* args, int32_t argCount) {
 
 static RValue builtinRoomGotoNext(VMContext* ctx, RValue* args, int32_t argCount) {
     (void) args; (void) argCount;
-    Runner* runner = (Runner*) ctx->runner;
-    if (runner == nullptr) {
-        fprintf(stderr, "VM: room_goto_next called but no runner!\n");
-        return RValue_makeUndefined();
-    }
+    Runner* runner = requireNotNullMessage(ctx->runner, "VM: room_goto_next called but no runner!");
 
     int32_t nextPos = runner->currentRoomOrderPosition + 1;
     if ((int32_t) runner->dataWin->gen8.roomOrderCount > nextPos) {
@@ -642,8 +638,7 @@ static RValue builtinRoomGotoNext(VMContext* ctx, RValue* args, int32_t argCount
 
 static RValue builtinRoomGoto(VMContext* ctx, RValue* args, int32_t argCount) {
     if (1 > argCount) return RValue_makeUndefined();
-    Runner* runner = (Runner*) ctx->runner;
-    if (runner == nullptr) return RValue_makeUndefined();
+    Runner* runner = requireNotNullMessage(ctx->runner, "VM: room_goto called but no runner!");
     runner->pendingRoom = RValue_toInt32(args[0]);
     return RValue_makeUndefined();
 }

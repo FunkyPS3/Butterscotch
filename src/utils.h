@@ -22,6 +22,24 @@ abort(); \
 } \
 } while (0)
 
+#define requireNotNull(ptr) ({ \
+typeof(ptr) _val = (ptr); \
+if (_val == NULL) { \
+fprintf(stderr, "%s:%d: requireNotNull failed: '%s'\n", __FILE__, __LINE__, #ptr); \
+abort(); \
+} \
+_val; \
+})
+
+#define requireNotNullMessage(ptr, msg) ({ \
+typeof(ptr) _val = (ptr); \
+if (_val == NULL) { \
+fprintf(stderr, "%s:%d: requireNotNull failed: %s\n", __FILE__, __LINE__, (msg)); \
+abort(); \
+} \
+_val; \
+})
+
 #define BGR_B(c) (((c) >> 16) & 0xFF)
 #define BGR_G(c) (((c) >>  8) & 0xFF)
 #define BGR_R(c) (((c) >>  0) & 0xFF)
