@@ -1,8 +1,8 @@
 #pragma once
 
-#define forEach(item, array, count) for (typeof(count) _i = 0; _i < (count) && ((item) = &(array)[_i], 1); _i++)
+#define forEach(type, item, array, count) type* item; for (typeof(count) _i = 0; _i < (count) && ((item) = &(array)[_i], 1); _i++)
 
-#define forEachIndexed(item, index, array, count) for (typeof(count) index = 0; index < (count) && ((item) = &(array)[index], 1); index++)
+#define forEachIndexed(type, item, index, array, count) type* item; for (typeof(count) index = 0; index < (count) && ((item) = &(array)[index], 1); index++)
 
 #define repeat(n, it) for (typeof(n) it = 0; it < (n); it++)
 

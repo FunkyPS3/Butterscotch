@@ -137,12 +137,10 @@ int main(int argc, char* argv[]) {
     VMContext* vm = VM_create(dataWin);
 
     if (args.printRooms) {
-        Room* room;
-        forEachIndexed(room, idx, dataWin->room.rooms, dataWin->room.count) {
+        forEachIndexed(Room, room, idx, dataWin->room.rooms, dataWin->room.count) {
             printf("[%d] %s\n", idx, room->name);
 
-            RoomGameObject* roomGameObject;
-            forEachIndexed(roomGameObject, idx2, room->gameObjects, room->gameObjectCount) {
+            forEachIndexed(RoomGameObject, roomGameObject, idx2, room->gameObjects, room->gameObjectCount) {
                 GameObject* gameObject = &dataWin->objt.objects[roomGameObject->objectDefinition];
                 printf(
                     "  [%d] %s (x=%d,y=%d,persistent=%d,solid=%d,spriteId=%d)\n",

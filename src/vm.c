@@ -812,8 +812,7 @@ static void handleCall(VMContext* ctx, uint32_t instr, const uint8_t* extraData)
 
     // Find the CodeLocals for this code entry
     CodeLocals* codeLocals = nullptr;
-    CodeLocals* cl;
-    forEach(cl, ctx->dataWin->func.codeLocals, ctx->dataWin->func.codeLocalsCount) {
+    forEach(CodeLocals, cl, ctx->dataWin->func.codeLocals, ctx->dataWin->func.codeLocalsCount) {
         if (strcmp(cl->name, code->name) == 0) {
             codeLocals = cl;
             break;
@@ -827,8 +826,7 @@ static void handleCall(VMContext* ctx, uint32_t instr, const uint8_t* extraData)
             snprintf(argName, sizeof(argName), "argument%d", argIdx);
 
             // Find the local variable with this name
-            LocalVar* local;
-            forEach(local, codeLocals->locals, codeLocals->localVarCount) {
+            forEach(LocalVar, local, codeLocals->locals, codeLocals->localVarCount) {
                 if (strcmp(local->name, argName) == 0) {
                     uint32_t varID = local->index;
                     if (localsCount > varID) {
@@ -1018,8 +1016,7 @@ VMContext* VM_create(DataWin* dataWin) {
     // Built-in variables have varID == -6 (sentinel), skip those
     uint32_t maxGlobalVarID = 0;
     uint32_t maxSelfVarID = 0;
-    Variable* v;
-    forEach(v, dataWin->vari.variables, dataWin->vari.variableCount) {
+    forEach(Variable, v, dataWin->vari.variables, dataWin->vari.variableCount) {
         if (0 > v->varID) continue;
         if (v->instanceType == INSTANCE_GLOBAL) {
             if ((uint32_t) v->varID + 1 > maxGlobalVarID) maxGlobalVarID = (uint32_t) v->varID + 1;
@@ -1042,8 +1039,7 @@ VMContext* VM_create(DataWin* dataWin) {
 
     // Build funcName -> codeIndex hash map from SCPT chunk
     ctx->funcMap = nullptr;
-    Script* s;
-    forEach(s, dataWin->scpt.scripts, dataWin->scpt.count) {
+    forEach(Script, s, dataWin->scpt.scripts, dataWin->scpt.count) {
         if (s->name != nullptr && s->codeId >= 0) {
             // Script names map to code entries. The code entry name is typically
             // "gml_Script_<scriptName>", so we store with the code entry's actual name
