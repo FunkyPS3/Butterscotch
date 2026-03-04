@@ -114,6 +114,18 @@ RValue VMBuiltins_getVariable(VMContext* ctx, const char* name, int32_t arrayInd
         if (strcmp(name, "image_alpha") == 0) return RValue_makeReal(inst->imageAlpha);
         if (strcmp(name, "image_blend") == 0) return RValue_makeReal((double) inst->imageBlend);
         if (strcmp(name, "sprite_index") == 0) return RValue_makeReal((double) inst->spriteIndex);
+        if (strcmp(name, "sprite_width") == 0) {
+            if (inst->spriteIndex >= 0 && runner != nullptr && runner->dataWin->sprt.count > (uint32_t) inst->spriteIndex) {
+                return RValue_makeReal((double) runner->dataWin->sprt.sprites[inst->spriteIndex].width * fabs(inst->imageXscale));
+            }
+            return RValue_makeReal(0.0);
+        }
+        if (strcmp(name, "sprite_height") == 0) {
+            if (inst->spriteIndex >= 0 && runner != nullptr && runner->dataWin->sprt.count > (uint32_t) inst->spriteIndex) {
+                return RValue_makeReal((double) runner->dataWin->sprt.sprites[inst->spriteIndex].height * fabs(inst->imageYscale));
+            }
+            return RValue_makeReal(0.0);
+        }
         if (strcmp(name, "visible") == 0) return RValue_makeBool(inst->visible);
         if (strcmp(name, "depth") == 0) return RValue_makeReal((double) inst->depth);
         if (strcmp(name, "x") == 0) return RValue_makeReal(inst->x);
