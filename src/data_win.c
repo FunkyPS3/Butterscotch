@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "stb_ds.h"
 #include "utils.h"
@@ -49,6 +50,158 @@ static EventAction* readEventActions(BinaryReader* reader, uint32_t* outCount) {
     }
     free(ptrs);
     return actions;
+}
+
+// ===[ PATH INTERNAL COMPUTATION ]===
+// Matches HTML5 yyPath.js algorithm exactly.
+
+// Dynamic array of InternalPathPoints for building during computation
+static InternalPathPoint* tempIntPoints = nullptr;
+static uint32_t tempIntPointCount = 0;
+
+static void addInternalPoint(double x, double y, double speed) {
+    InternalPathPoint pt = { .x = x, .y = y, .speed = speed, .l = 0.0 };
+    arrput(tempIntPoints, pt);
+    tempIntPointCount++;
+}
+
+// Recursive midpoint subdivision for smooth curves (yyPath.js:225-242)
+static void handlePiece(int depth, double x1, double y1, double s1, double x2, double y2, double s2, double x3, double y3, double s3) {
+    if (depth == 0) return;
+
+    double mx = (x1 + x2 + x2 + x3) / 4.0;
+    double my = (y1 + y2 + y2 + y3) / 4.0;
+    double ms = (s1 + s2 + s2 + s3) / 4.0;
+
+    if ((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) > 16.0) {
+        handlePiece(depth - 1, x1, y1, s1, (x2 + x1) / 2.0, (y2 + y1) / 2.0, (s2 + s1) / 2.0, mx, my, ms);
+    }
+
+    addInternalPoint(mx, my, ms);
+
+    if ((x2 - x3) * (x2 - x3) + (y2 - y3) * (y2 - y3) > 16.0) {
+        handlePiece(depth - 1, mx, my, ms, (x3 + x2) / 2.0, (y3 + y2) / 2.0, (s3 + s2) / 2.0, x3, y3, s3);
+    }
+}
+
+void GamePath_computeInternal(GamePath* path) {
+    // Reset temp state
+    arrfree(tempIntPoints);
+    tempIntPoints = nullptr;
+    tempIntPointCount = 0;
+
+    if (path->pointCount == 0) {
+        path->internalPointCount = 0;
+        path->internalPoints = nullptr;
+        path->length = 0.0;
+        return;
+    }
+
+    if (path->isSmooth) {
+        // ComputeCurved (yyPath.js:254-292)
+        if (!path->isClosed) {
+            addInternalPoint(path->points[0].x, path->points[0].y, path->points[0].speed);
+        }
+
+        int n;
+        if (path->isClosed) {
+            n = (int) path->pointCount - 1;
+        } else {
+            n = (int) path->pointCount - 3;
+        }
+
+        repeat(n + 1, i) {
+            PathPoint* p1 = &path->points[i % path->pointCount];
+            PathPoint* p2 = &path->points[(i + 1) % path->pointCount];
+            PathPoint* p3 = &path->points[(i + 2) % path->pointCount];
+            handlePiece((int) path->precision,
+                        (p1->x + p2->x) / 2.0, (p1->y + p2->y) / 2.0, (p1->speed + p2->speed) / 2.0,
+                        p2->x, p2->y, p2->speed,
+                        (p2->x + p3->x) / 2.0, (p2->y + p3->y) / 2.0, (p2->speed + p3->speed) / 2.0);
+        }
+
+        if (!path->isClosed) {
+            PathPoint* last = &path->points[path->pointCount - 1];
+            addInternalPoint(last->x, last->y, last->speed);
+        } else {
+            // Closed smooth: append the first internal point again
+            addInternalPoint(tempIntPoints[0].x, tempIntPoints[0].y, tempIntPoints[0].speed);
+        }
+    } else {
+        // ComputeLinear (yyPath.js:192-204)
+        repeat(path->pointCount, i) {
+            addInternalPoint(path->points[i].x, path->points[i].y, path->points[i].speed);
+        }
+        if (path->isClosed) {
+            addInternalPoint(path->points[0].x, path->points[0].y, path->points[0].speed);
+        }
+    }
+
+    // ComputeLength (yyPath.js:150-160)
+    path->internalPointCount = tempIntPointCount;
+    path->internalPoints = malloc(tempIntPointCount * sizeof(InternalPathPoint));
+    memcpy(path->internalPoints, tempIntPoints, tempIntPointCount * sizeof(InternalPathPoint));
+    arrfree(tempIntPoints);
+    tempIntPoints = nullptr;
+    tempIntPointCount = 0;
+
+    path->length = 0.0;
+    if (path->internalPointCount > 0) {
+        path->internalPoints[0].l = 0.0;
+        repeat(path->internalPointCount - 1, j) {
+            uint32_t i = j + 1;
+            double dx = path->internalPoints[i].x - path->internalPoints[i - 1].x;
+            double dy = path->internalPoints[i].y - path->internalPoints[i - 1].y;
+            path->length += sqrt(dx * dx + dy * dy);
+            path->internalPoints[i].l = path->length;
+        }
+    }
+}
+
+// Get interpolated position at t in [0,1] (yyPath.js:362-409)
+PathPositionResult GamePath_getPosition(GamePath* path, double t) {
+    PathPositionResult result = { .x = 0.0, .y = 0.0, .speed = 0.0 };
+
+    if (path->internalPointCount == 0) return result;
+
+    if (path->internalPointCount == 1 || path->length == 0.0 || 0.0 >= t) {
+        result.x = path->internalPoints[0].x;
+        result.y = path->internalPoints[0].y;
+        result.speed = path->internalPoints[0].speed;
+        return result;
+    }
+
+    if (t >= 1.0) {
+        InternalPathPoint* last = &path->internalPoints[path->internalPointCount - 1];
+        result.x = last->x;
+        result.y = last->y;
+        result.speed = last->speed;
+        return result;
+    }
+
+    // Get the right interval via linear scan
+    double l = path->length * t;
+    uint32_t pos = 0;
+    while (pos < path->internalPointCount - 2 && l >= path->internalPoints[pos + 1].l) {
+        pos++;
+    }
+
+    InternalPathPoint* node = &path->internalPoints[pos];
+    double lRem = l - node->l;
+    double w = path->internalPoints[pos + 1].l - node->l;
+
+    if (w != 0.0) {
+        InternalPathPoint* next = &path->internalPoints[pos + 1];
+        result.x = node->x + lRem * (next->x - node->x) / w;
+        result.y = node->y + lRem * (next->y - node->y) / w;
+        result.speed = node->speed + lRem * (next->speed - node->speed) / w;
+    } else {
+        result.x = node->x;
+        result.y = node->y;
+        result.speed = node->speed;
+    }
+
+    return result;
 }
 
 // ===[ CHUNK PARSERS ]===
@@ -423,6 +576,9 @@ static void parsePATH(BinaryReader* reader, DataWin* dw) {
         } else {
             path->points = nullptr;
         }
+
+        // Precompute internal representation for path following
+        GamePath_computeInternal(path);
     }
     free(ptrs);
 }
@@ -1260,6 +1416,7 @@ void DataWin_free(DataWin* dw) {
     if (dw->path.paths) {
         repeat(dw->path.count, i) {
             free(dw->path.paths[i].points);
+            free(dw->path.paths[i].internalPoints);
         }
         free(dw->path.paths);
     }

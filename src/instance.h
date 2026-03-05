@@ -33,6 +33,17 @@ typedef struct Instance {
     double friction;
     double gravity, gravityDirection;
 
+    // Path following state
+    int32_t pathIndex;           // -1 = no path active
+    double pathPosition;         // 0.0-1.0
+    double pathPositionPrevious;
+    double pathSpeed;
+    double pathScale;            // default 1.0
+    double pathOrientation;      // degrees, default 0.0
+    int32_t pathEndAction;       // 0=stop, 1=restart, 2=continue, 3=reverse
+    double pathXStart;           // origin for relative paths
+    double pathYStart;
+
     int32_t alarm[GML_ALARM_COUNT];
 } Instance;
 

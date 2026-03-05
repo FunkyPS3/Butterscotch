@@ -182,12 +182,28 @@ typedef struct {
 } PathPoint;
 
 typedef struct {
+    double x;
+    double y;
+    double speed;
+    double l; // cumulative arc length from start
+} InternalPathPoint;
+
+typedef struct {
+    double x;
+    double y;
+    double speed;
+} PathPositionResult;
+
+typedef struct {
     const char* name;
     bool isSmooth;
     bool isClosed;
     uint32_t precision;
     uint32_t pointCount;
     PathPoint* points;
+    uint32_t internalPointCount;
+    InternalPathPoint* internalPoints;
+    double length; // total arc length
 } GamePath;
 
 typedef struct {
@@ -606,3 +622,5 @@ DataWin* DataWin_parse(const char* filePath);
 void DataWin_free(DataWin* dataWin);
 void DataWin_printDebugSummary(DataWin* dataWin);
 int32_t DataWin_resolveTPAG(DataWin* dw, uint32_t offset);
+void GamePath_computeInternal(GamePath* path);
+PathPositionResult GamePath_getPosition(GamePath* path, double t);

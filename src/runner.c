@@ -151,6 +151,7 @@ const char* Runner_getEventName(int32_t eventType, int32_t eventSubtype) {
                 case OTHER_GAME_START:      return "GameStart";
                 case OTHER_ROOM_START:      return "RoomStart";
                 case OTHER_ROOM_END:        return "RoomEnd";
+                case OTHER_END_OF_PATH:     return "EndOfPath";
                 case OTHER_USER0 +  0:      return "UserEvent0";
                 case OTHER_USER0 +  1:      return "UserEvent1";
                 case OTHER_USER0 +  2:      return "UserEvent2";
@@ -855,14 +856,125 @@ static void dispatchOutsideRoomEvents(Runner* runner) {
     }
 }
 
+// ===[ Path Adaptation ]===
+// Advances path position and updates instance x/y (HTML5: yyInstance.js Adapt_Path, lines 2755-2881)
+// Returns true if end of path was reached (and pathSpeed != 0), to fire OTHER_END_OF_PATH event.
+static bool adaptPath(Runner* runner, Instance* inst) {
+    if (0 > inst->pathIndex) return false;
+
+    DataWin* dataWin = runner->dataWin;
+    if ((uint32_t) inst->pathIndex >= dataWin->path.count) return false;
+
+    GamePath* path = &dataWin->path.paths[inst->pathIndex];
+    if (0.0 >= path->length) return false;
+
+    bool atPathEnd = false;
+
+    double orient = inst->pathOrientation * M_PI / 180.0;
+
+    // Get current position's speed factor
+    PathPositionResult cur = GamePath_getPosition(path, inst->pathPosition);
+    double sp = cur.speed / (100.0 * inst->pathScale);
+
+    // Advance position
+    inst->pathPosition = inst->pathPosition + inst->pathSpeed * sp / path->length;
+
+    // Handle end actions if position out of [0,1]
+    PathPositionResult pos0 = GamePath_getPosition(path, 0.0);
+    if (inst->pathPosition >= 1.0 || 0.0 >= inst->pathPosition) {
+        atPathEnd = (inst->pathSpeed == 0.0) ? false : true;
+
+        switch (inst->pathEndAction) {
+            // stop moving
+            case 0: {
+                if (inst->pathSpeed != 0.0) {
+                    inst->pathPosition = 1.0;
+                    inst->pathIndex = -1;
+                }
+                break;
+            }
+            // continue from start position (restart)
+            case 1: {
+                if (0.0 > inst->pathPosition) {
+                    inst->pathPosition += 1.0;
+                } else {
+                    inst->pathPosition -= 1.0;
+                }
+                break;
+            }
+            // continue from current position
+            case 2: {
+                PathPositionResult pos1 = GamePath_getPosition(path, 1.0);
+                double xx = pos1.x - pos0.x;
+                double yy = pos1.y - pos0.y;
+                double xdif = inst->pathScale * (xx * cos(orient) + yy * sin(orient));
+                double ydif = inst->pathScale * (yy * cos(orient) - xx * sin(orient));
+
+                if (0.0 > inst->pathPosition) {
+                    inst->pathXStart -= xdif;
+                    inst->pathYStart -= ydif;
+                    inst->pathPosition += 1.0;
+                } else {
+                    inst->pathXStart += xdif;
+                    inst->pathYStart += ydif;
+                    inst->pathPosition -= 1.0;
+                }
+                break;
+            }
+            // reverse
+            case 3: {
+                if (0.0 > inst->pathPosition) {
+                    inst->pathPosition = -inst->pathPosition;
+                    inst->pathSpeed = fabs(inst->pathSpeed);
+                } else {
+                    inst->pathPosition = 2.0 - inst->pathPosition;
+                    inst->pathSpeed = -fabs(inst->pathSpeed);
+                }
+                break;
+            }
+            // default: stop
+            default: {
+                inst->pathPosition = 1.0;
+                inst->pathIndex = -1;
+                break;
+            }
+        }
+    }
+
+    // Find the new position in the room
+    PathPositionResult newPos = GamePath_getPosition(path, inst->pathPosition);
+    double xx = newPos.x - pos0.x; // relative
+    double yy = newPos.y - pos0.y;
+
+    double newx = inst->pathXStart + inst->pathScale * (xx * cos(orient) + yy * sin(orient));
+    double newy = inst->pathYStart + inst->pathScale * (yy * cos(orient) - xx * sin(orient));
+
+    // Trick to set the direction: set hspeed/vspeed to delta, which updates direction
+    inst->hspeed = newx - inst->x;
+    inst->vspeed = newy - inst->y;
+    Instance_computeSpeedFromComponents(inst);
+
+    // Normal speed should not be used
+    inst->speed = 0.0;
+    inst->hspeed = 0.0;
+    inst->vspeed = 0.0;
+
+    // Set the new position
+    inst->x = newx;
+    inst->y = newy;
+
+    return atPathEnd;
+}
+
 void Runner_step(Runner* runner) {
-    // Save xprevious/yprevious for all active instances
+    // Save xprevious/yprevious and path_positionprevious for all active instances
     int32_t prevCount = (int32_t) arrlen(runner->instances);
     repeat(prevCount, i) {
         Instance* inst = runner->instances[i];
         if (inst->active) {
             inst->xprevious = inst->x;
             inst->yprevious = inst->y;
+            inst->pathPositionPrevious = inst->pathPosition;
         }
     }
 
@@ -944,6 +1056,11 @@ void Runner_step(Runner* runner) {
             inst->hspeed += inst->gravity * clampFloat(cos(gravDirRad));
             inst->vspeed -= inst->gravity * clampFloat(sin(gravDirRad));
             Instance_computeSpeedFromComponents(inst);
+        }
+
+        // Path adaptation (HTML5: Adapt_Path, runs after friction/gravity, before x+=hspeed)
+        if (adaptPath(runner, inst)) {
+            Runner_executeEvent(runner, inst, EVENT_OTHER, OTHER_END_OF_PATH);
         }
 
         // Apply movement

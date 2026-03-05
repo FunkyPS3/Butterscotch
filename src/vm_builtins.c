@@ -176,6 +176,15 @@ RValue VMBuiltins_getVariable(VMContext* ctx, const char* name, int32_t arrayInd
             }
             return RValue_makeReal(-1.0);
         }
+
+        // Path instance variables
+        if (strcmp(name, "path_index") == 0) return RValue_makeReal((double) inst->pathIndex);
+        if (strcmp(name, "path_position") == 0) return RValue_makeReal(inst->pathPosition);
+        if (strcmp(name, "path_positionprevious") == 0) return RValue_makeReal(inst->pathPositionPrevious);
+        if (strcmp(name, "path_speed") == 0) return RValue_makeReal(inst->pathSpeed);
+        if (strcmp(name, "path_scale") == 0) return RValue_makeReal(inst->pathScale);
+        if (strcmp(name, "path_orientation") == 0) return RValue_makeReal(inst->pathOrientation);
+        if (strcmp(name, "path_endaction") == 0) return RValue_makeReal((double) inst->pathEndAction);
     }
 
     // Room properties
@@ -308,6 +317,12 @@ RValue VMBuiltins_getVariable(VMContext* ctx, const char* name, int32_t arrayInd
     if (strcmp(name, "pi") == 0) return RValue_makeReal(3.14159265358979323846);
     if (strcmp(name, "undefined") == 0) return RValue_makeUndefined();
 
+    // Path action constants
+    if (strcmp(name, "path_action_stop") == 0) return RValue_makeReal(0.0);
+    if (strcmp(name, "path_action_restart") == 0) return RValue_makeReal(1.0);
+    if (strcmp(name, "path_action_continue") == 0) return RValue_makeReal(2.0);
+    if (strcmp(name, "path_action_reverse") == 0) return RValue_makeReal(3.0);
+
     fprintf(stderr, "VM: Unhandled built-in variable read '%s' (arrayIndex=%d)\n", name, arrayIndex);
     return RValue_makeReal(0.0);
 }
@@ -360,6 +375,13 @@ void VMBuiltins_setVariable(VMContext* ctx, const char* name, RValue val, int32_
             }
             return;
         }
+
+        // Path instance variables (writable)
+        if (strcmp(name, "path_position") == 0) { inst->pathPosition = RValue_toReal(val); return; }
+        if (strcmp(name, "path_speed") == 0) { inst->pathSpeed = RValue_toReal(val); return; }
+        if (strcmp(name, "path_scale") == 0) { inst->pathScale = RValue_toReal(val); return; }
+        if (strcmp(name, "path_orientation") == 0) { inst->pathOrientation = RValue_toReal(val); return; }
+        if (strcmp(name, "path_endaction") == 0) { inst->pathEndAction = RValue_toInt32(val); return; }
     }
 
     // Keyboard variables
@@ -445,7 +467,7 @@ void VMBuiltins_setVariable(VMContext* ctx, const char* name, RValue val, int32_
         strcmp(name, "os_ps4") == 0 || strcmp(name, "os_psvita") == 0 ||
         strcmp(name, "id") == 0 || strcmp(name, "object_index") == 0 ||
         strcmp(name, "current_time") == 0 || strcmp(name, "room") == 0 ||
-        strcmp(name, "view_current") == 0) {
+        strcmp(name, "view_current") == 0 || strcmp(name, "path_index") == 0) {
         fprintf(stderr, "VM: Warning - attempted write to read-only built-in '%s'\n", name);
         return;
     }
@@ -2259,6 +2281,70 @@ static RValue builtinTileLayerShift([[maybe_unused]] VMContext* ctx, RValue* arg
     return RValue_makeUndefined();
 }
 
+// ===[ PATH FUNCTIONS ]===
+
+// path_start(path, speed, endaction, absolute) - HTML5: Assign_Path (yyInstance.js:2695-2743)
+static RValue builtinPathStart(VMContext* ctx, RValue* args, int32_t argCount) {
+    if (4 > argCount) return RValue_makeUndefined();
+
+    Instance* inst = (Instance*) ctx->currentInstance;
+    if (inst == nullptr) return RValue_makeUndefined();
+
+    Runner* runner = (Runner*) ctx->runner;
+    if (runner == nullptr) return RValue_makeUndefined();
+
+    int32_t pathIdx = RValue_toInt32(args[0]);
+    double speed = RValue_toReal(args[1]);
+    int32_t endAction = RValue_toInt32(args[2]);
+    bool absolute = RValue_toBool(args[3]);
+
+    // Validate path index
+    inst->pathIndex = -1;
+    if (0 > pathIdx) return RValue_makeUndefined();
+    if ((uint32_t) pathIdx >= runner->dataWin->path.count) return RValue_makeUndefined();
+
+    GamePath* path = &runner->dataWin->path.paths[pathIdx];
+    if (0.0 >= path->length) return RValue_makeUndefined();
+
+    inst->pathIndex = pathIdx;
+    inst->pathSpeed = speed;
+
+    if (inst->pathSpeed >= 0.0) {
+        inst->pathPosition = 0.0;
+    } else {
+        inst->pathPosition = 1.0;
+    }
+
+    inst->pathPositionPrevious = inst->pathPosition;
+    inst->pathScale = 1.0;
+    inst->pathOrientation = 0.0;
+    inst->pathEndAction = endAction;
+
+    if (absolute) {
+        PathPositionResult startPos = GamePath_getPosition(path, inst->pathSpeed >= 0.0 ? 0.0 : 1.0);
+        inst->x = startPos.x;
+        inst->y = startPos.y;
+
+        PathPositionResult origin = GamePath_getPosition(path, 0.0);
+        inst->pathXStart = origin.x;
+        inst->pathYStart = origin.y;
+    } else {
+        inst->pathXStart = inst->x;
+        inst->pathYStart = inst->y;
+    }
+
+    return RValue_makeUndefined();
+}
+
+// path_end() - HTML5: Assign_Path(-1,...)
+static RValue builtinPathEnd(VMContext* ctx, [[maybe_unused]] RValue* args, [[maybe_unused]] int32_t argCount) {
+    Instance* inst = (Instance*) ctx->currentInstance;
+    if (inst != nullptr) {
+        inst->pathIndex = -1;
+    }
+    return RValue_makeUndefined();
+}
+
 // ===[ REGISTRATION ]===
 
 void VMBuiltins_registerAll(void) {
@@ -2554,6 +2640,10 @@ void VMBuiltins_registerAll(void) {
     registerBuiltin("tile_layer_hide", builtinTileLayerHide);
     registerBuiltin("tile_layer_show", builtinTileLayerShow);
     registerBuiltin("tile_layer_shift", builtinTileLayerShift);
+
+    // Path
+    registerBuiltin("path_start", builtinPathStart);
+    registerBuiltin("path_end", builtinPathEnd);
 
     // Misc
     registerBuiltin("get_timer", builtin_get_timer);

@@ -39,6 +39,8 @@ Instance* Instance_create(uint32_t instanceId, int32_t objectIndex, double x, do
     inst->friction = 0.0;
     inst->gravity = 0.0;
     inst->gravityDirection = 270.0;
+    inst->pathIndex = -1;
+    inst->pathScale = 1.0;
     inst->selfArrayMap = nullptr;
     inst->selfArrayVarTracker = nullptr;
 
