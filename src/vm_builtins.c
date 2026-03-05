@@ -1449,6 +1449,28 @@ static RValue builtinActionKillObject(VMContext* ctx, [[maybe_unused]] RValue* a
     return RValue_makeUndefined();
 }
 
+static RValue builtinActionSetRelative(VMContext* ctx, [[maybe_unused]] RValue* args, [[maybe_unused]] int32_t argCount) {
+    ctx->actionRelativeFlag = RValue_toInt32(args[0]) != 0;
+    return RValue_makeUndefined();
+}
+
+static RValue builtinActionMoveTo(VMContext* ctx, [[maybe_unused]] RValue* args, [[maybe_unused]] int32_t argCount) {
+    double ax = RValue_toReal(args[0]);
+    double ay = RValue_toReal(args[1]);
+
+    if (ctx->currentInstance != nullptr) {
+        Instance* inst = (Instance*) ctx->currentInstance;
+        if (ctx->actionRelativeFlag) {
+            inst->x += ax;
+            inst->y += ay;
+        } else {
+            inst->x = ax;
+            inst->y = ay;
+        }
+    }
+    return RValue_makeUndefined();
+}
+
 // Buffer stubs
 STUB_RETURN_ZERO(buffer_create)
 STUB_RETURN_UNDEFINED(buffer_delete)
@@ -2267,6 +2289,8 @@ void VMBuiltins_registerAll(void) {
     registerBuiltin("instance_destroy", builtinInstanceDestroy);
     registerBuiltin("instance_create", builtinInstanceCreate);
     registerBuiltin("action_kill_object", builtinActionKillObject);
+    registerBuiltin("action_set_relative", builtinActionSetRelative);
+    registerBuiltin("action_move_to", builtinActionMoveTo);
     registerBuiltin("event_inherited", builtinEventInherited);
     registerBuiltin("event_user", builtinEventUser);
     registerBuiltin("event_perform", builtinEventPerform);
