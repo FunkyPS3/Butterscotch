@@ -1096,8 +1096,10 @@ void Runner_step(Runner* runner) {
         double frameCount = (double) sprite->textureCount;
         if (inst->imageIndex >= frameCount) {
             inst->imageIndex -= frameCount;
+            Runner_executeEvent(runner, inst, EVENT_OTHER, OTHER_ANIMATION_END);
         } else if (0.0 > inst->imageIndex) {
             inst->imageIndex += frameCount;
+            Runner_executeEvent(runner, inst, EVENT_OTHER, OTHER_ANIMATION_END);
         }
     }
 

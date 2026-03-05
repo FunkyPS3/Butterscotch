@@ -38,6 +38,7 @@
 #define OTHER_GAME_START    2
 #define OTHER_ROOM_START    4
 #define OTHER_ROOM_END      5
+#define OTHER_ANIMATION_END 7
 #define OTHER_END_OF_PATH   8
 #define OTHER_USER0         10
 
