@@ -243,14 +243,14 @@ RValue VMBuiltins_getVariable(VMContext* ctx, const char* name, int32_t arrayInd
             return RValue_makeReal(0.0);
         }
         if (strcmp(name, "background_width") == 0) {
-            if (arrayIndex >= 0 && 8 > arrayIndex) {
+            if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) {
                 int32_t tpagIndex = Renderer_resolveBackgroundTPAGIndex(runner->dataWin, runner->backgrounds[arrayIndex].backgroundIndex);
                 if (tpagIndex >= 0) return RValue_makeReal((double) runner->dataWin->tpag.items[tpagIndex].boundingWidth);
             }
             return RValue_makeReal(0.0);
         }
         if (strcmp(name, "background_height") == 0) {
-            if (arrayIndex >= 0 && 8 > arrayIndex) {
+            if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) {
                 int32_t tpagIndex = Renderer_resolveBackgroundTPAGIndex(runner->dataWin, runner->backgrounds[arrayIndex].backgroundIndex);
                 if (tpagIndex >= 0) return RValue_makeReal((double) runner->dataWin->tpag.items[tpagIndex].boundingHeight);
             }
@@ -354,7 +354,7 @@ void VMBuiltins_setVariable(VMContext* ctx, const char* name, RValue val, int32_
             if (isValidAlarmIndex(arrayIndex)) {
                 int32_t newValue = RValue_toInt32(val);
                 if (shgeti(ctx->alarmsToBeTraced, "*") != -1 || shgeti(ctx->alarmsToBeTraced, runner->dataWin->objt.objects[inst->objectIndex].name) != -1) {
-                    printf("VM: [%s] Setting Alarm[%d] = %d (instanceId=%d)\n", runner->dataWin->objt.objects[inst->objectIndex].name, arrayIndex, newValue, inst->instanceId);
+                    fprintf(stderr, "VM: [%s] Setting Alarm[%d] = %d (instanceId=%d)\n", runner->dataWin->objt.objects[inst->objectIndex].name, arrayIndex, newValue, inst->instanceId);
                 }
                 inst->alarm[arrayIndex] = newValue;
             }
@@ -406,27 +406,27 @@ void VMBuiltins_setVariable(VMContext* ctx, const char* name, RValue val, int32_
 
     // Background properties
     if (strcmp(name, "background_visible") == 0) {
-        if (arrayIndex >= 0 && 8 > arrayIndex) runner->backgrounds[arrayIndex].visible = RValue_toBool(val);
+        if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].visible = RValue_toBool(val);
         return;
     }
     if (strcmp(name, "background_index") == 0) {
-        if (arrayIndex >= 0 && 8 > arrayIndex) runner->backgrounds[arrayIndex].backgroundIndex = RValue_toInt32(val);
+        if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].backgroundIndex = RValue_toInt32(val);
         return;
     }
     if (strcmp(name, "background_x") == 0) {
-        if (arrayIndex >= 0 && 8 > arrayIndex) runner->backgrounds[arrayIndex].x = (float) RValue_toReal(val);
+        if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].x = (float) RValue_toReal(val);
         return;
     }
     if (strcmp(name, "background_y") == 0) {
-        if (arrayIndex >= 0 && 8 > arrayIndex) runner->backgrounds[arrayIndex].y = (float) RValue_toReal(val);
+        if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].y = (float) RValue_toReal(val);
         return;
     }
     if (strcmp(name, "background_hspeed") == 0) {
-        if (arrayIndex >= 0 && 8 > arrayIndex) runner->backgrounds[arrayIndex].speedX = (float) RValue_toReal(val);
+        if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].speedX = (float) RValue_toReal(val);
         return;
     }
     if (strcmp(name, "background_vspeed") == 0) {
-        if (arrayIndex >= 0 && 8 > arrayIndex) runner->backgrounds[arrayIndex].speedY = (float) RValue_toReal(val);
+        if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].speedY = (float) RValue_toReal(val);
         return;
     }
     if (strcmp(name, "background_color") == 0 || strcmp(name, "background_colour") == 0) {
@@ -2211,7 +2211,7 @@ static RValue builtinActionSetAlarm(VMContext* ctx, [[maybe_unused]] RValue* arg
         Runner* runner = (Runner*) ctx->runner;
 
         if (shgeti(ctx->alarmsToBeTraced, "*") != -1 || shgeti(ctx->alarmsToBeTraced, runner->dataWin->objt.objects[inst->objectIndex].name) != -1) {
-            printf("VM: [%s] Setting Alarm[%d] = %d (instanceId=%d)\n", runner->dataWin->objt.objects[inst->objectIndex].name, alarmIndex, steps, inst->instanceId);
+            fprintf(stderr, "VM: [%s] Setting Alarm[%d] = %d (instanceId=%d)\n", runner->dataWin->objt.objects[inst->objectIndex].name, alarmIndex, steps, inst->instanceId);
         }
 
         inst->alarm[alarmIndex] = steps;

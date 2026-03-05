@@ -557,7 +557,7 @@ int main(int argc, char* argv[]) {
 
         if (shouldStep) {
             if (args.traceFrames)
-                printf("Frame %d (Start)\n", runner->frameCount);
+                fprintf(stderr, "Frame %d (Start)\n", runner->frameCount);
 
             // Run one game step (Begin Step, Keyboard, Alarms, Step, End Step, room transitions)
             Runner_step(runner);
@@ -653,7 +653,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (shouldStep && args.traceFrames)
-            printf("Frame %d (End)\n", runner->frameCount);
+            fprintf(stderr, "Frame %d (End)\n", runner->frameCount);
 
         glfwSwapBuffers(window);
 

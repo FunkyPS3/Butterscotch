@@ -196,9 +196,9 @@ void Runner_executeEventFromObject(Runner* runner, Instance* instance, int32_t s
 
         if (shouldTrace) {
             if (eventType == EVENT_ALARM) {
-                printf("Runner: [%s] %s %d (instanceId=%d)\n", objectName, eventName, eventSubtype, instance->instanceId);
+                fprintf(stderr, "Runner: [%s] %s %d (instanceId=%d)\n", objectName, eventName, eventSubtype, instance->instanceId);
             } else {
-                printf("Runner: [%s] %s (instanceId=%d)\n", objectName, eventName, instance->instanceId);
+                fprintf(stderr, "Runner: [%s] %s (instanceId=%d)\n", objectName, eventName, instance->instanceId);
             }
         }
     }
@@ -418,7 +418,7 @@ static Instance* createAndInitInstance(Runner* runner, int32_t instanceId, int32
     arrput(runner->instances, inst);
 
     if (shgeti(runner->vmContext->instanceLifecyclesToBeTraced, "*") != -1 || shgeti(runner->vmContext->instanceLifecyclesToBeTraced, objDef->name) != -1) {
-        printf("VM: Instance %s (%d) created at (%f, %f)\n", objDef->name, instanceId, x, y);
+        fprintf(stderr, "VM: Instance %s (%d) created at (%f, %f)\n", objDef->name, instanceId, x, y);
     }
 
     return inst;
@@ -573,7 +573,7 @@ void Runner_destroyInstance(Runner* runner, Instance* inst) {
     inst->active = false;
 
     if (shgeti(runner->vmContext->instanceLifecyclesToBeTraced, "*") != -1 || shgeti(runner->vmContext->instanceLifecyclesToBeTraced, gameObject->name) != -1) {
-        printf("VM: Instance %s (%d) destroyed\n", gameObject->name, inst->instanceId);
+        fprintf(stderr, "VM: Instance %s (%d) destroyed\n", gameObject->name, inst->instanceId);
     }
 }
 
@@ -644,7 +644,7 @@ static void executeCollisionEvent(Runner* runner, Instance* self, Instance* othe
         const char* targetName = runner->dataWin->objt.objects[targetObjectIndex].name;
         bool shouldTrace = shgeti(vm->eventsToBeTraced, "*") != -1 || shgeti(vm->eventsToBeTraced, "Collision") != -1 || shgeti(vm->eventsToBeTraced, selfName) != -1;
         if (shouldTrace) {
-            printf("Runner: [%s] Collision with %s (instanceId=%d, otherId=%d)\n", selfName, targetName, self->instanceId, other->instanceId);
+            fprintf(stderr, "Runner: [%s] Collision with %s (instanceId=%d, otherId=%d)\n", selfName, targetName, self->instanceId, other->instanceId);
         }
     }
 
@@ -852,7 +852,7 @@ void Runner_step(Runner* runner) {
         repeat(GML_ALARM_COUNT, alarmIdx) {
             if (inst->alarm[alarmIdx] > 0) {
                 if (shgeti(runner->vmContext->alarmsToBeTraced, "*") != -1 || shgeti(runner->vmContext->alarmsToBeTraced, object->name) != -1) {
-                    printf("VM: [%s] Ticking down Alarm[%d] (instanceId=%d), current tick is %d\n", object->name, alarmIdx, inst->instanceId, inst->alarm[alarmIdx]);
+                    fprintf(stderr, "VM: [%s] Ticking down Alarm[%d] (instanceId=%d), current tick is %d\n", object->name, alarmIdx, inst->instanceId, inst->alarm[alarmIdx]);
                 }
 
                 inst->alarm[alarmIdx]--;
@@ -860,7 +860,7 @@ void Runner_step(Runner* runner) {
                     inst->alarm[alarmIdx] = -1;
 
                     if (shgeti(runner->vmContext->alarmsToBeTraced, "*") != -1 || shgeti(runner->vmContext->alarmsToBeTraced, object->name) != -1) {
-                        printf("VM: [%s] Firing Alarm[%d] (instanceId=%d)\n", object->name, alarmIdx, inst->instanceId);
+                        fprintf(stderr, "VM: [%s] Firing Alarm[%d] (instanceId=%d)\n", object->name, alarmIdx, inst->instanceId);
                     }
 
                     Runner_executeEvent(runner, inst, EVENT_ALARM, alarmIdx);
