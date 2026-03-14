@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
+// Forward declaration for progress callback
+typedef struct DataWin DataWin;
+
 typedef struct {
     bool parseGen8;
     bool parseOptn;
@@ -29,6 +32,15 @@ typedef struct {
     bool parseAudo;
     // If true, precise masks will be skipped when the sprite does not have a precise state set
     bool skipLoadingPreciseMasksForNonPreciseSprites;
+
+    // Optional progress callback, called before each chunk is parsed.
+    // chunkName: 4-character chunk name (e.g. "GEN8", "SPRT")
+    // chunkIndex: 0-based index of the current chunk being parsed
+    // totalChunks: total number of chunks in the file
+    // dataWin: the DataWin being populated (earlier chunks may already be parsed)
+    // userData: user-provided pointer passed through from the options
+    void (*progressCallback)(const char* chunkName, int chunkIndex, int totalChunks, DataWin* dataWin, void* userData);
+    void* progressCallbackUserData;
 } DataWinParserOptions;
 
 // ===[ GEN8 - General Info ]===

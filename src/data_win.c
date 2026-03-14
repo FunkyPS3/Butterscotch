@@ -1315,8 +1315,22 @@ DataWin* DataWin_parse(const char* filePath, DataWinParserOptions options) {
     uint32_t formLength = BinaryReader_readUint32(&reader);
     (void) formLength;
 
-    // Pass 1: Scan chunk headers to find and pre-load STRG chunk.
+    // Pass 1: Count total chunks and find STRG chunk offset.
+    int totalChunks = 0;
+    {
+        size_t scanPos = BinaryReader_getPosition(&reader);
+        while ((size_t) fileSize > scanPos) {
+            if (scanPos + 8 > (size_t) fileSize) break;
+            BinaryReader_seek(&reader, scanPos + 4); // skip chunk name
+            uint32_t cl = BinaryReader_readUint32(&reader);
+            scanPos = BinaryReader_getPosition(&reader) + cl;
+            totalChunks++;
+        }
+    }
+
+    // Pass 1b: Scan chunk headers to find and pre-load STRG chunk.
     // All other chunks reference strings from STRG, so it must be loaded first.
+    BinaryReader_seek(&reader, 8); // reset to after FORM header
     if (options.parseStrg) {
         while ((size_t) fileSize > BinaryReader_getPosition(&reader)) {
             if (BinaryReader_getPosition(&reader) + 8 > (size_t) fileSize) break;
@@ -1338,6 +1352,7 @@ DataWin* DataWin_parse(const char* filePath, DataWinParserOptions options) {
 
     // Pass 2: Parse all chunks
     BinaryReader_seek(&reader, 8); // skip past FORM header
+    int chunkIndex = 0;
     while ((size_t) fileSize > BinaryReader_getPosition(&reader)) {
         if (BinaryReader_getPosition(&reader) + 8 > (size_t) fileSize) break;
 
@@ -1346,6 +1361,10 @@ DataWin* DataWin_parse(const char* filePath, DataWinParserOptions options) {
         uint32_t chunkLength = BinaryReader_readUint32(&reader);
         size_t chunkDataStart = BinaryReader_getPosition(&reader);
         size_t chunkEnd = chunkDataStart + chunkLength;
+
+        if (options.progressCallback) {
+            options.progressCallback(chunkName, chunkIndex, totalChunks, dw, options.progressCallbackUserData);
+        }
 
         if (options.parseGen8 && memcmp(chunkName, "GEN8", 4) == 0) {
             parseGEN8(&reader, dw);
@@ -1401,6 +1420,7 @@ DataWin* DataWin_parse(const char* filePath, DataWinParserOptions options) {
 
         // Seek to chunk end (skip any unread data or trailing padding)
         BinaryReader_seek(&reader, chunkEnd);
+        chunkIndex++;
     }
 
     fclose(file);
