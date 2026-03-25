@@ -30,6 +30,7 @@ typedef struct {
     bool parseFunc;
     bool parseStrg;
     bool parseTxtr;
+    bool loadTxtrBlobData;
     bool parseAudo;
     // If true, precise masks will be skipped when the sprite does not have a precise state set
     bool skipLoadingPreciseMasksForNonPreciseSprites;
@@ -72,7 +73,6 @@ typedef struct {
     uint32_t debuggerPort;
     uint32_t roomOrderCount;
     int32_t* roomOrder;
-    float gms2FPS;
 } Gen8;
 
 // ===[ OPTN - Options ]===
@@ -191,15 +191,10 @@ typedef struct {
     uint32_t sepMasks;
     int32_t originX;
     int32_t originY;
-    uint32_t sVersion;
-    uint32_t sSpriteType;
-    float gms2PlaybackSpeed;
-    bool gms2PlaybackSpeedType;
-    bool specialType;
     uint32_t textureCount;
     uint32_t* textureOffsets; // absolute file offsets to TexturePageItems
     uint32_t maskCount;       // number of collision masks (one per frame, or 0)
-    uint8_t** masks;          // array of maskCount packed bit arrays (nullptr if none)
+    uint8_t** masks;          // array of maskCount packed bit arrays (NULL if none)
 } Sprite;
 
 typedef struct {
@@ -214,19 +209,6 @@ typedef struct {
     bool smooth;
     bool preload;
     uint32_t textureOffset; // absolute file offset to TexturePageItem
-    uint32_t gms2UnknownAlways2;
-    uint32_t gms2TileWidth;
-    uint32_t gms2TileHeight;
-    uint32_t gms2TileSeparationX;
-    uint32_t gms2TileSeparationY;
-    uint32_t gms2OutputBorderX;
-    uint32_t gms2OutputBorderY;
-    uint32_t gms2TileColumns;
-    uint32_t gms2ItemsPerTileCount;
-    uint32_t gms2TileCount;
-    int gms2ExportedSpriteIndex;
-    int64_t gms2FrameLength;
-    uint32_t *gms2TileIds;
 } Background;
 
 typedef struct {
@@ -506,55 +488,6 @@ typedef struct {
     uint32_t color;
 } RoomTile;
 
-enum RoomLayerType : uint32_t
-{
-    RoomLayerType_Path = 0,
-    RoomLayerType_Background = 1,
-    RoomLayerType_Instances = 2,
-    RoomLayerType_Assets = 3,
-    RoomLayerType_Tiles = 4,
-    RoomLayerType_Effect = 6,
-    RoomLayerType_Path2 = 7
-};
-
-typedef struct {
-    uint32_t legacyTilesPtr;
-    uint32_t spritesPtr;
-} RoomLayerAssetsData;
-
-typedef struct {
-    bool visible;
-    bool foreground;
-    int32_t spriteIndex; // into SPRT (-1 = none)
-    bool hTiled;
-    bool vTiled;
-    bool stretch;
-    uint32_t color;
-    float firstFrame;
-    float animSpeed;
-    uint32_t animSpeedType;
-} RoomLayerBackgroundData;
-
-typedef struct {
-    uint32_t instanceCount;
-    uint32_t* instanceIds;
-} RoomLayerInstancesData;
-
-typedef struct {
-    const char* name;
-    uint32_t id;
-    uint32_t type;
-    int32_t depth;
-    float xOffset;
-    float yOffset;
-    float hSpeed;
-    float vSpeed;
-    bool visible;
-    RoomLayerAssetsData *assetsData;
-    RoomLayerBackgroundData *backgroundData;
-    RoomLayerInstancesData *instancesData;
-} RoomLayer;
-
 typedef struct {
     const char* name;
     const char* caption;
@@ -580,8 +513,6 @@ typedef struct {
     RoomGameObject* gameObjects;
     uint32_t tileCount;
     RoomTile* tiles;
-    uint32_t layerCount;
-    RoomLayer* layers;
 } Room;
 
 typedef struct {
@@ -700,6 +631,7 @@ typedef struct {
 
 // ===[ Top-level DataWin container ]===
 typedef struct DataWin {
+    char* sourcePath;           // original path used to parse this data.win
     uint8_t* strgBuffer;        // owned copy of STRG chunk raw data
     // Absolute file offset of strgBuffer[0], we need this because data.win stores absolute offsets (from the beginning of the data.win file) instead of relative offsets
     size_t strgBufferBase;

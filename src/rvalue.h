@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,7 +80,7 @@ static char* RValue_toString(RValue val) {
             snprintf(buf, sizeof(buf), "%lld", (long long) val.int64);
             return safeStrdup(buf);
         case RVALUE_STRING:
-            return safeStrdup(val.string != nullptr ? val.string : "");
+            return safeStrdup(val.string != NULL ? val.string : "");
         case RVALUE_BOOL:
             return safeStrdup(val.int32 ? "1" : "0");
         case RVALUE_UNDEFINED:
@@ -129,7 +130,7 @@ static char* RValue_toStringTyped(RValue val) {
             snprintf(buf, sizeof(buf), "int64(%lld)", (long long) val.int64);
             return safeStrdup(buf);
         case RVALUE_STRING: {
-            const char* str = val.string != nullptr ? val.string : "";
+            const char* str = val.string != NULL ? val.string : "";
             size_t needed = strlen(str) + 3;
             char* result = safeCalloc(needed, sizeof(char));
             snprintf(result, needed, "\"%s\"", str);
@@ -147,9 +148,9 @@ static char* RValue_toStringTyped(RValue val) {
 }
 
 static void RValue_free(RValue* val) {
-    if (val->type == RVALUE_STRING && val->ownsString && val->string != nullptr) {
+    if (val->type == RVALUE_STRING && val->ownsString && val->string != NULL) {
         free((void*) val->string);
-        val->string = nullptr;
+        val->string = NULL;
         val->ownsString = false;
     }
 }
@@ -160,7 +161,7 @@ static GMLReal RValue_toReal(RValue val) {
         case RVALUE_INT32:  return (GMLReal) val.int32;
         case RVALUE_INT64:  return (GMLReal) val.int64;
         case RVALUE_BOOL:   return (GMLReal) val.int32;
-        case RVALUE_STRING: return GMLReal_strtod(val.string, nullptr);
+        case RVALUE_STRING: return GMLReal_strtod(val.string, NULL);
         case RVALUE_ARRAY_REF: return 0.0;
         default:            return 0.0;
     }
@@ -172,7 +173,7 @@ static int32_t RValue_toInt32(RValue val) {
         case RVALUE_INT32:  return val.int32;
         case RVALUE_INT64:  return (int32_t) val.int64;
         case RVALUE_BOOL:   return val.int32;
-        case RVALUE_STRING: return (int32_t) GMLReal_strtod(val.string, nullptr);
+        case RVALUE_STRING: return (int32_t) GMLReal_strtod(val.string, NULL);
         case RVALUE_ARRAY_REF: return 0;
         default:            return 0;
     }
@@ -184,7 +185,7 @@ static int64_t RValue_toInt64(RValue val) {
         case RVALUE_INT32:  return (int64_t) val.int32;
         case RVALUE_INT64:  return val.int64;
         case RVALUE_BOOL:   return (int64_t) val.int32;
-        case RVALUE_STRING: return (int64_t) GMLReal_strtod(val.string, nullptr);
+        case RVALUE_STRING: return (int64_t) GMLReal_strtod(val.string, NULL);
         case RVALUE_ARRAY_REF: return 0;
         default:            return 0;
     }
@@ -196,7 +197,7 @@ static bool RValue_toBool(RValue val) {
         case RVALUE_INT32:  return val.int32 > 0;
         case RVALUE_INT64:  return val.int64 > 0;
         case RVALUE_BOOL:   return val.int32 != 0;
-        case RVALUE_STRING: return val.string != nullptr && val.string[0] != '\0';
+        case RVALUE_STRING: return val.string != NULL && val.string[0] != '\0';
         case RVALUE_ARRAY_REF: return false;
         default:            return false;
     }
