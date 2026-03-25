@@ -24,12 +24,20 @@ TARGET      := butterscotch
 BUILD       := build_ps3
 HOST_BUILD  := build_host
 
-SOURCES     := src src/ps3 src/ps3/include
-DATA        :=
-INCLUDES    := \
-	$(PROJECT_ROOT)/src \
-	$(PROJECT_ROOT)/src/ps3 \
-	$(PROJECT_ROOT)/src/ps3/include \
+SOURCES 	:= \
+	src/core \
+	src/data \
+	src/engine \
+	src/fs \
+	src/input \
+	src/renderer \
+	src/audio \
+	src/platform/ps3 \
+	src/platform/ps3/rsx
+
+DATA :=
+INCLUDES := \
+	$(shell find $(PROJECT_ROOT)/src -type d) \
 	$(PROJECT_ROOT)/vendor/stb/ds \
 	$(PROJECT_ROOT)/vendor/stb/image
 
@@ -49,20 +57,20 @@ SFOXML      := $(PS3DEV)/bin/sfo.xml
 HOST_CC      ?= cc
 HOST_CFLAGS  := -O2 -Wall -Wextra -std=gnu11 \
                 -I$(PROJECT_ROOT)/src \
-                -I$(PROJECT_ROOT)/src/ps3 \
                 -I$(PROJECT_ROOT)/vendor/stb/ds \
                 -I$(PROJECT_ROOT)/vendor/stb/image
 HOST_LDFLAGS := -lm
 HOST_TXTR_TOOL := $(PROJECT_ROOT)/$(HOST_BUILD)/txtr_cooker
 HOST_TXTR_TOOL_SOURCES := \
 	$(PROJECT_ROOT)/tools/txtr_cooker.c \
-	$(PROJECT_ROOT)/src/binary_reader.c \
-	$(PROJECT_ROOT)/src/data_win.c \
-	$(PROJECT_ROOT)/src/ps3/stb_impl.c
+	$(PROJECT_ROOT)/src/core/binary_reader.c \
+	$(PROJECT_ROOT)/src/data/data_win.c \
+	$(PROJECT_ROOT)/src/platform/ps3/stb_impl.c
 
 CFLAGS      := -O2 -Wall -Wextra -mcpu=cell -mhard-float \
                -fmodulo-sched -ffunction-sections -fdata-sections -fno-builtin \
                -D__PPU__ -D__PS3__ -D__CELLOS_LV2__ \
+			   -DPS3_DATA_WIN_PATH=\"/dev_hdd0/game/$(APPID)/USRDIR/data.win\" \
                $(MACHDEP) $(INCLUDE)
 
 CXXFLAGS    := $(CFLAGS)
@@ -76,7 +84,7 @@ include $(PSL1GHT)/ppu_rules
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-export OUTPUT   := $(PROJECT_ROOT)/$(TARGET)
+export OUTPUT   := $(PROJECT_ROOT)/$(TITLE)
 
 export VPATH    := $(foreach dir,$(SOURCES),$(PROJECT_ROOT)/$(dir)) \
                    $(foreach dir,$(DATA),$(PROJECT_ROOT)/$(dir))
@@ -88,6 +96,7 @@ CFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(PROJECT_ROOT)/$(di
 CPPFILES    := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(PROJECT_ROOT)/$(dir)/*.cpp)))
 sFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(PROJECT_ROOT)/$(dir)/*.s)))
 SFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(PROJECT_ROOT)/$(dir)/*.S)))
+
 
 ifeq ($(strip $(CPPFILES)),)
 export LD := $(CC)
@@ -158,6 +167,7 @@ clean:
 	        $(PROJECT_ROOT)/$(TARGET).self \
 	        $(PROJECT_ROOT)/$(TARGET).fake.self \
 	        $(PROJECT_ROOT)/$(TARGET).pkg \
+			$(PROJECT_ROOT)/$(TARGET).gnpdrm.pkg \
 	        $(PKG_USRDIR)/data.win \
 	        $(TXTR_PACK)
 

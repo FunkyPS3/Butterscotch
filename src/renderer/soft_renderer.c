@@ -7,8 +7,7 @@
 #include <string.h>
 #include <math.h>
 
-// ===[ Renderer internal state ]===
-
+// TODO: Migrate from Software Renderer to RSX Renderer to fix stutter on real PS3 hardware.
 typedef struct
 {
     Renderer base; // MUST be first
@@ -50,6 +49,7 @@ typedef struct
     uint32_t framePixelWrites;
     uint32_t frameDrawSpriteCalls;
     uint32_t frameDrawSpritePartCalls;
+    uint32_t frameDrawTileCalls;
     uint32_t frameDrawTextCalls;
     uint32_t frameRectCalls;
     uint32_t frameLineCalls;
@@ -165,32 +165,6 @@ static TexturePageCacheEntry *getTexturePage(SoftRendererInternal *ri, int pageI
 }
 
 // ===[ Core sprite blit ]===
-
-typedef struct {
-    float x,y,z;
-    float u,v;
-    uint32_t color;
-} RSXSpriteVertex;
-
-static void rsxBlitSprite(
-    SoftRendererInternal *ri,
-    int pageId,
-    int srcX, int srcY, int srcW, int srcH,
-    float dstXf, float dstYf,
-    float xscale, float yscale,
-    float angleDeg,
-    float tintR, float tintG, float tintB,
-    float alpha)
-{
-    if (!ri) return;
-    if (alpha <= 0.0f || srcW <= 0 || srcH <= 0)
-        return;
-
-    if (pageId < 0 || pageId >= ri->textureCount)
-        return;
-
-    
-}
 
 static void blitSprite(SoftRendererInternal *ri,
                        int pageId,
@@ -577,10 +551,14 @@ static void soft_drawSprite(Renderer *r, int32_t tpagIndex, float x, float y,
     // local top-left is (targetX - originX, targetY - originY).
     float drawX = x + ((float)tpag->targetX - ox) * xs;
     float drawY = y + ((float)tpag->targetY - oy) * ys;
+    float dstW = (float)tpag->sourceWidth * xs;
+    float dstH = (float)tpag->sourceHeight * ys;
 
     blitSprite(ri, pageId,
                tpag->sourceX, tpag->sourceY, tpag->sourceWidth, tpag->sourceHeight,
                drawX, drawY, xs, ys, ang, tr, tg, tb, alpha);
+    (void)dstW;
+    (void)dstH;
 }
 
 static void soft_drawSpritePart(Renderer *r, int32_t tpagIndex,

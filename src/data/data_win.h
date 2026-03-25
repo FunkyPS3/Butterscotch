@@ -4,10 +4,16 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#ifdef __PPU__
+#include "rsx/rsx_loading_screen.h"
+#endif
+#include "compat.h"
+
 // Forward declaration for progress callback
 typedef struct DataWin DataWin;
 
-typedef struct {
+typedef struct
+{
     bool parseGen8;
     bool parseOptn;
     bool parseLang;
@@ -41,21 +47,22 @@ typedef struct {
     // totalChunks: total number of chunks in the file
     // dataWin: the DataWin being populated (earlier chunks may already be parsed)
     // userData: user-provided pointer passed through from the options
-    void (*progressCallback)(const char* chunkName, int chunkIndex, int totalChunks, DataWin* dataWin, void* userData);
-    void* progressCallbackUserData;
+    void (*progressCallback)(const char *chunkName, int chunkIndex, int totalChunks, DataWin *dataWin, void *userData);
+    void *progressCallbackUserData;
 } DataWinParserOptions;
 
 // ===[ GEN8 - General Info ]===
-typedef struct {
+typedef struct
+{
     uint8_t isDebuggerDisabled;
     uint8_t bytecodeVersion;
-    const char* fileName;
-    const char* config;
+    const char *fileName;
+    const char *config;
     uint32_t lastObj;
     uint32_t lastTile;
     uint32_t gameID;
     uint8_t directPlayGuid[16];
-    const char* name;
+    const char *name;
     uint32_t major;
     uint32_t minor;
     uint32_t release;
@@ -66,22 +73,24 @@ typedef struct {
     uint32_t licenseCRC32;
     uint8_t licenseMD5[16];
     uint64_t timestamp;
-    const char* displayName;
+    const char *displayName;
     uint64_t activeTargets;
     uint64_t functionClassifications;
     int32_t steamAppID;
     uint32_t debuggerPort;
     uint32_t roomOrderCount;
-    int32_t* roomOrder;
+    int32_t *roomOrder;
 } Gen8;
 
 // ===[ OPTN - Options ]===
-typedef struct {
-    const char* name;
-    const char* value;
+typedef struct
+{
+    const char *name;
+    const char *value;
 } OptnConstant;
 
-typedef struct {
+typedef struct
+{
     uint64_t info;
     int32_t scale;
     uint32_t windowColor;
@@ -95,64 +104,71 @@ typedef struct {
     uint32_t loadImage;
     uint32_t loadAlpha;
     uint32_t constantCount;
-    OptnConstant* constants;
+    OptnConstant *constants;
 } Optn;
 
 // ===[ LANG - Languages ]===
-typedef struct {
-    const char* name;
-    const char* region;
+typedef struct
+{
+    const char *name;
+    const char *region;
     uint32_t entryCount;
-    const char** entries;
+    const char **entries;
 } Language;
 
-typedef struct {
+typedef struct
+{
     uint32_t unknown1;
     uint32_t languageCount;
     uint32_t entryCount;
-    const char** entryIds;
-    Language* languages;
+    const char **entryIds;
+    Language *languages;
 } Lang;
 
 // ===[ EXTN - Extensions ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t id;
     uint32_t kind;
     uint32_t retType;
-    const char* extName;
+    const char *extName;
     uint32_t argumentCount;
-    uint32_t* arguments;
+    uint32_t *arguments;
 } ExtensionFunction;
 
-typedef struct {
-    const char* filename;
-    const char* cleanupScript;
-    const char* initScript;
+typedef struct
+{
+    const char *filename;
+    const char *cleanupScript;
+    const char *initScript;
     uint32_t kind;
     uint32_t functionCount;
-    ExtensionFunction* functions;
+    ExtensionFunction *functions;
 } ExtensionFile;
 
-typedef struct {
-    const char* folderName;
-    const char* name;
-    const char* className;
+typedef struct
+{
+    const char *folderName;
+    const char *name;
+    const char *className;
     uint32_t fileCount;
-    ExtensionFile* files;
+    ExtensionFile *files;
 } Extension;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Extension* extensions;
+    Extension *extensions;
 } Extn;
 
 // ===[ SOND - Sounds ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t flags;
-    const char* type;
-    const char* file;
+    const char *type;
+    const char *file;
     uint32_t effects;
     float volume;
     float pitch;
@@ -160,24 +176,28 @@ typedef struct {
     int32_t audioFile;
 } Sound;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Sound* sounds;
+    Sound *sounds;
 } Sond;
 
 // ===[ AGRP - Audio Groups ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
 } AudioGroup;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    AudioGroup* audioGroups;
+    AudioGroup *audioGroups;
 } Agrp;
 
 // ===[ SPRT - Sprites ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t width;
     uint32_t height;
     int32_t marginLeft;
@@ -192,98 +212,110 @@ typedef struct {
     int32_t originX;
     int32_t originY;
     uint32_t textureCount;
-    uint32_t* textureOffsets; // absolute file offsets to TexturePageItems
+    uint32_t *textureOffsets; // absolute file offsets to TexturePageItems
     uint32_t maskCount;       // number of collision masks (one per frame, or 0)
-    uint8_t** masks;          // array of maskCount packed bit arrays (NULL if none)
+    uint8_t **masks;          // array of maskCount packed bit arrays (NULL if none)
 } Sprite;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Sprite* sprites;
+    Sprite *sprites;
 } Sprt;
 
 // ===[ BGND - Backgrounds ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     bool transparent;
     bool smooth;
     bool preload;
     uint32_t textureOffset; // absolute file offset to TexturePageItem
 } Background;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Background* backgrounds;
+    Background *backgrounds;
 } Bgnd;
 
 // ===[ PATH - Paths ]===
-typedef struct {
+typedef struct
+{
     float x;
     float y;
     float speed;
 } PathPoint;
 
-typedef struct {
+typedef struct
+{
     double x;
     double y;
     double speed;
     double l; // cumulative arc length from start
 } InternalPathPoint;
 
-typedef struct {
+typedef struct
+{
     double x;
     double y;
     double speed;
 } PathPositionResult;
 
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     bool isSmooth;
     bool isClosed;
     uint32_t precision;
     uint32_t pointCount;
-    PathPoint* points;
+    PathPoint *points;
     uint32_t internalPointCount;
-    InternalPathPoint* internalPoints;
+    InternalPathPoint *internalPoints;
     double length; // total arc length
 } GamePath;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    GamePath* paths;
+    GamePath *paths;
 } PathChunk;
 
 // ===[ SCPT - Scripts ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     int32_t codeId;
 } Script;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Script* scripts;
+    Script *scripts;
 } Scpt;
 
 // ===[ GLOB - Global Init Scripts ]===
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    int32_t* codeIds;
+    int32_t *codeIds;
 } Glob;
 
 // ===[ SHDR - Shaders ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t type;
-    const char* glslES_Vertex;
-    const char* glslES_Fragment;
-    const char* glsl_Vertex;
-    const char* glsl_Fragment;
-    const char* hlsl9_Vertex;
-    const char* hlsl9_Fragment;
+    const char *glslES_Vertex;
+    const char *glslES_Fragment;
+    const char *glsl_Vertex;
+    const char *glsl_Fragment;
+    const char *hlsl9_Vertex;
+    const char *hlsl9_Fragment;
     uint32_t hlsl11_VertexOffset;
     uint32_t hlsl11_PixelOffset;
     uint32_t vertexAttributeCount;
-    const char** vertexAttributes;
+    const char **vertexAttributes;
     int32_t version;
     uint32_t pssl_VertexOffset;
     uint32_t pssl_VertexLen;
@@ -299,18 +331,21 @@ typedef struct {
     uint32_t cgPS3_PixelLen;
 } Shader;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Shader* shaders;
+    Shader *shaders;
 } Shdr;
 
 // ===[ FONT - Fonts ]===
-typedef struct {
+typedef struct
+{
     int16_t character;
     int16_t shiftModifier;
 } KerningPair;
 
-typedef struct {
+typedef struct
+{
     uint16_t character;
     uint16_t sourceX;
     uint16_t sourceY;
@@ -319,12 +354,13 @@ typedef struct {
     int16_t shift;
     int16_t offset;
     uint16_t kerningCount;
-    KerningPair* kerning;
+    KerningPair *kerning;
 } FontGlyph;
 
-typedef struct {
-    const char* name;
-    const char* displayName;
+typedef struct
+{
+    const char *name;
+    const char *displayName;
     uint32_t emSize;
     bool bold;
     bool italic;
@@ -336,16 +372,18 @@ typedef struct {
     float scaleX;
     float scaleY;
     uint32_t glyphCount;
-    FontGlyph* glyphs;
+    FontGlyph *glyphs;
 } Font;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Font* fonts;
+    Font *fonts;
 } FontChunk;
 
 // ===[ EventAction (shared by TMLN and OBJT) ]===
-typedef struct {
+typedef struct
+{
     uint32_t libID;
     uint32_t id;
     uint32_t kind;
@@ -353,7 +391,7 @@ typedef struct {
     bool isQuestion;
     bool useApplyTo;
     uint32_t exeType;
-    const char* actionName;
+    const char *actionName;
     int32_t codeId;
     uint32_t argumentCount;
     int32_t who;
@@ -363,44 +401,51 @@ typedef struct {
 } EventAction;
 
 // ===[ TMLN - Timelines ]===
-typedef struct {
+typedef struct
+{
     uint32_t step;
     uint32_t actionCount;
-    EventAction* actions;
+    EventAction *actions;
 } TimelineMoment;
 
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t momentCount;
-    TimelineMoment* moments;
+    TimelineMoment *moments;
 } Timeline;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Timeline* timelines;
+    Timeline *timelines;
 } Tmln;
 
 // ===[ OBJT - Game Objects ]===
 #define OBJT_EVENT_TYPE_COUNT 12
 
-typedef struct {
+typedef struct
+{
     uint32_t eventSubtype;
     uint32_t actionCount;
-    EventAction* actions;
+    EventAction *actions;
 } ObjectEvent;
 
-typedef struct {
+typedef struct
+{
     uint32_t eventCount;
-    ObjectEvent* events;
+    ObjectEvent *events;
 } ObjectEventList;
 
-typedef struct {
+typedef struct
+{
     float x;
     float y;
 } PhysicsVertex;
 
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     int32_t spriteId;
     bool visible;
     bool solid;
@@ -420,17 +465,19 @@ typedef struct {
     float friction;
     bool awake;
     bool kinematic;
-    PhysicsVertex* physicsVertices;
+    PhysicsVertex *physicsVertices;
     ObjectEventList eventLists[OBJT_EVENT_TYPE_COUNT];
 } GameObject;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    GameObject* objects;
+    GameObject *objects;
 } Objt;
 
 // ===[ ROOM - Rooms ]===
-typedef struct {
+typedef struct
+{
     bool enabled;
     bool foreground;
     int32_t backgroundDefinition;
@@ -443,7 +490,8 @@ typedef struct {
     bool stretch;
 } RoomBackground;
 
-typedef struct {
+typedef struct
+{
     bool enabled;
     int32_t viewX;
     int32_t viewY;
@@ -460,7 +508,8 @@ typedef struct {
     int32_t objectId;
 } RoomView;
 
-typedef struct {
+typedef struct
+{
     int32_t x;
     int32_t y;
     int32_t objectDefinition;
@@ -473,7 +522,8 @@ typedef struct {
     int32_t preCreateCode;
 } RoomGameObject;
 
-typedef struct {
+typedef struct
+{
     int32_t x;
     int32_t y;
     int32_t backgroundDefinition;
@@ -488,9 +538,10 @@ typedef struct {
     uint32_t color;
 } RoomTile;
 
-typedef struct {
-    const char* name;
-    const char* caption;
+typedef struct
+{
+    const char *name;
+    const char *caption;
     uint32_t width;
     uint32_t height;
     uint32_t speed;
@@ -510,18 +561,20 @@ typedef struct {
     RoomBackground backgrounds[8];
     RoomView views[8];
     uint32_t gameObjectCount;
-    RoomGameObject* gameObjects;
+    RoomGameObject *gameObjects;
     uint32_t tileCount;
-    RoomTile* tiles;
+    RoomTile *tiles;
 } Room;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Room* rooms;
+    Room *rooms;
 } RoomChunk;
 
 // ===[ TPAG - Texture Page Items ]===
-typedef struct {
+typedef struct
+{
     uint16_t sourceX;
     uint16_t sourceY;
     uint16_t sourceWidth;
@@ -535,14 +588,16 @@ typedef struct {
     int16_t texturePageId;
 } TexturePageItem;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    TexturePageItem* items;
+    TexturePageItem *items;
 } Tpag;
 
 // ===[ CODE - Code Entries ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t length;
     uint16_t localsCount;
     uint16_t argumentsCount;
@@ -550,93 +605,106 @@ typedef struct {
     uint32_t offset;
 } CodeEntry;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    CodeEntry* entries;
+    CodeEntry *entries;
 } Code;
 
 // ===[ VARI - Variables ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     int32_t instanceType;
     int32_t varID;
     uint32_t occurrences;
     uint32_t firstAddress;
 } Variable;
 
-typedef struct {
+typedef struct
+{
     uint32_t varCount1;
     uint32_t varCount2;
     uint32_t maxLocalVarCount;
     uint32_t variableCount;
-    Variable* variables;
+    Variable *variables;
 } Vari;
 
 // ===[ FUNC - Functions & Code Locals ]===
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t occurrences;
     uint32_t firstAddress;
 } Function;
 
-typedef struct {
+typedef struct
+{
     uint32_t index;
-    const char* name;
+    const char *name;
 } LocalVar;
 
-typedef struct {
-    const char* name;
+typedef struct
+{
+    const char *name;
     uint32_t localVarCount;
-    LocalVar* locals;
+    LocalVar *locals;
 } CodeLocals;
 
-typedef struct {
+typedef struct
+{
     uint32_t functionCount;
-    Function* functions;
+    Function *functions;
     uint32_t codeLocalsCount;
-    CodeLocals* codeLocals;
+    CodeLocals *codeLocals;
 } Func;
 
 // ===[ STRG - Strings ]===
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    const char** strings; // pointers into strgBuffer
+    const char **strings; // pointers into strgBuffer
 } Strg;
 
 // ===[ TXTR - Embedded Textures ]===
-typedef struct {
+typedef struct
+{
     uint32_t scaled;
     uint32_t generatedMips; // GMS 2.0.6+: number of generated mipmaps (0 for GMS 1.x)
-    uint32_t blobOffset; // absolute file offset to PNG data
-    uint32_t blobSize; // computed size of blob data
-    uint8_t* blobData; // owned copy of PNG data
+    uint32_t blobOffset;    // absolute file offset to PNG data
+    uint32_t blobSize;      // computed size of blob data
+    uint8_t *blobData;      // owned copy of PNG data
 } Texture;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    Texture* textures;
+    Texture *textures;
 } Txtr;
 
 // ===[ AUDO - Embedded Audio ]===
-typedef struct {
+typedef struct
+{
     uint32_t dataOffset; // absolute file offset to audio data
     uint32_t dataSize;   // length of audio data
-    uint8_t* data;       // owned copy of audio data
+    uint8_t *data;       // owned copy of audio data
 } AudioEntry;
 
-typedef struct {
+typedef struct
+{
     uint32_t count;
-    AudioEntry* entries;
+    AudioEntry *entries;
 } Audo;
 
 // ===[ Top-level DataWin container ]===
-typedef struct DataWin {
-    char* sourcePath;           // original path used to parse this data.win
-    uint8_t* strgBuffer;        // owned copy of STRG chunk raw data
+typedef struct DataWin
+{
+    char *sourcePath;    // original path used to parse this data.win
+    uint8_t *strgBuffer; // owned copy of STRG chunk raw data
     // Absolute file offset of strgBuffer[0], we need this because data.win stores absolute offsets (from the beginning of the data.win file) instead of relative offsets
     size_t strgBufferBase;
 
-    uint8_t* bytecodeBuffer;     // owned copy of CODE bytecode blob
+    uint8_t *bytecodeBuffer; // owned copy of CODE bytecode blob
     // Absolute file offset of bytecodeBuffer[0], we need this because data.win stores absolute offsets (from the beginning of the data.win file) instead of relative offsets
     size_t bytecodeBufferBase;
 
@@ -666,12 +734,16 @@ typedef struct DataWin {
     Audo audo;
 
     // Lookup map: absolute file offset -> TPAG index (built during TPAG parsing)
-    struct { uint32_t key; int32_t value; }* tpagOffsetMap;
+    struct
+    {
+        uint32_t key;
+        int32_t value;
+    } *tpagOffsetMap;
 } DataWin;
 
-DataWin* DataWin_parse(const char* filePath, DataWinParserOptions options);
-void DataWin_free(DataWin* dataWin);
-void DataWin_printDebugSummary(DataWin* dataWin);
-int32_t DataWin_resolveTPAG(DataWin* dw, uint32_t offset);
-void GamePath_computeInternal(GamePath* path);
-PathPositionResult GamePath_getPosition(GamePath* path, double t);
+DataWin *DataWin_parse(const char *filePath, DataWinParserOptions options);
+void DataWin_free(DataWin *dataWin);
+void DataWin_printDebugSummary(DataWin *dataWin);
+int32_t DataWin_resolveTPAG(DataWin *dw, uint32_t offset);
+void GamePath_computeInternal(GamePath *path);
+PathPositionResult GamePath_getPosition(GamePath *path, double t);

@@ -12,7 +12,7 @@
 #include "ini.h"
 #include "audio_system.h"
 #include "file_system.h"
-#include "ps3_time.h"
+#include "sys/ps3_time.h"
 #include "vm_builtins.h"
 #include "instance.h"
 #include "runner.h"

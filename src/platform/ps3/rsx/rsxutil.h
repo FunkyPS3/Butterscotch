@@ -16,6 +16,7 @@ typedef struct {
 } rsxBuffer;
 
 void waitFlip(void);
+void clearBuffer(rsxBuffer *buffer, uint32_t color);
 
 int flip(gcmContextData *context, s32 buffer);
 int makeBuffer(rsxBuffer *buffer, u16 width, u16 height, int id);

@@ -1,5 +1,5 @@
-#include "data_win.h"
-#include "binary_reader.h"
+#include "data/data_win.h"
+#include "core/binary_reader.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +7,7 @@
 #include <math.h>
 
 #include "stb_ds.h"
-#include "utils.h"
+#include "core/utils.h"
 
 #ifdef __PPU__
 #include <lv2/sysfs.h>

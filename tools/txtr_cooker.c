@@ -1,5 +1,5 @@
-#include "data_win.h"
-#include "txtr_pack_format.h"
+#include "data/data_win.h"
+#include "data/txtr_pack_format.h"
 
 #include <limits.h>
 #include <stdbool.h>

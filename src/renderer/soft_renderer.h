@@ -1,7 +1,6 @@
 #pragma once
 
 #include "renderer.h"
-#include "rsx/rsx.h"
 
 typedef struct {
     int page_id;
@@ -10,7 +9,6 @@ typedef struct {
     int width;
     int height;
     uint64_t last_used;
-    void *rsx_handle;
     bool loaded;
 } TexturePageCacheEntry;
 

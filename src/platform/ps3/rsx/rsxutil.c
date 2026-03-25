@@ -10,7 +10,7 @@
 #include <time.h>
 #include <math.h>
 
-#include "rsxutils.h"
+#include "rsx/rsxutil.h"
 
 #define GCM_LABEL_INDEX 255
 
@@ -25,6 +25,20 @@ void waitFlip()
     while (gcmGetFlipStatus() != 0)
         usleep(200);
     gcmResetFlipStatus();
+}
+
+void clearBuffer(rsxBuffer *buffer, uint32_t color)
+{
+    uint32_t count;
+
+    if (buffer == NULL || buffer->ptr == NULL)
+    {
+        return;
+    }
+
+    count = (uint32_t)(buffer->width * buffer->height);
+    for (uint32_t i = 0; i < count; i++)
+        buffer->ptr[i] = color;
 }
 
 int flip(gcmContextData *context, s32 buffer)

@@ -1,13 +1,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 
+#include "core/utils.h"
 #include "renderer.h"
 #include "soft_renderer.h"
 #include "txtr_pack_format.h"
-#include "rsx/rsx.h"
 
 #ifdef __PPU__
     #include <lv2/sysfs.h>
@@ -16,6 +17,10 @@
 #define TEXTURE_CACHE_MAX_ENTRIES 192
 #define TEXTURE_CACHE_MAX_BYTES (96 * 1024 * 1024) /* 96 MiB */
 #define TEXTURE_PACK_FULLY_LOADED_MAX_BYTES (160 * 1024 * 1024) /* 160 MiB */
+
+#ifdef __PPU__
+    #define RSX_MAIN_MEMORY_MAP_ALIGNMENT (1024u * 1024u)
+#endif
 
 typedef struct {
     TexturePageCacheEntry entries[TEXTURE_CACHE_MAX_ENTRIES];
@@ -50,6 +55,7 @@ typedef struct {
 
 static TexturePageCache g_textureCache;
 static TexturePackIndex g_texturePack;
+static uint32_t g_textureCacheInitCount = 0u;
 
 /* Forward declarations */
 static void TexturePageCache_init(TexturePageCache *cache);
@@ -72,6 +78,22 @@ static bool TexturePackIndex_tryFullyLoad(TexturePackIndex* pack);
 static inline uint32_t rgbaToArgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     return ((uint32_t)a << 24) | ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
+}
+
+static size_t alignUpSize(size_t value, size_t alignment)
+{
+    if (alignment == 0u)
+    {
+        return value;
+    }
+
+    size_t remainder = value % alignment;
+    if (remainder == 0u)
+    {
+        return value;
+    }
+
+    return value + (alignment - remainder);
 }
 
 static void convertRgbaBytesToArgb(uint8_t* rgba, size_t pixel_count)
@@ -402,7 +424,14 @@ static bool loadTexturePageFromPack(DataWin* dw, int page_id, LoadedTexturePage*
         return false;
     }
 
-    uint8_t* rgba = safeMalloc((size_t)dataSize);
+    size_t allocSize = (size_t)dataSize;
+#ifdef __PPU__
+    allocSize = alignUpSize(allocSize, RSX_MAIN_MEMORY_MAP_ALIGNMENT);
+    uint8_t* rgba = safeMemalign(RSX_MAIN_MEMORY_MAP_ALIGNMENT, allocSize);
+    memset(rgba, 0, allocSize);
+#else
+    uint8_t* rgba = safeMalloc(allocSize);
+#endif
     if (!TexturePackIndex_readBytesAt(&g_texturePack, dataOffset, rgba, (size_t)dataSize)) {
         fprintf(stderr, "TextureCache: failed to read cooked texture page %d from %s\n", page_id, g_texturePack.path);
         free(rgba);
@@ -413,7 +442,7 @@ static bool loadTexturePageFromPack(DataWin* dw, int page_id, LoadedTexturePage*
         convertRgbaBytesToArgb(rgba, pixelCount);
     }
     out_page->pixels = rgba;
-    out_page->size = pixelCount * sizeof(uint32_t);
+    out_page->size = allocSize;
     out_page->width = (int)width;
     out_page->height = (int)height;
     return true;
@@ -474,8 +503,6 @@ static void TexturePageCache_destroy(TexturePageCache *cache)
             free(entry->pixels_xdr);
             entry->pixels_xdr = NULL;
         }
-
-        entry->rsx_handle = NULL;
         entry->loaded = false;
         entry->size = 0;
         entry->width = 0;
@@ -543,9 +570,6 @@ static void TexturePageCache_evict(TexturePageCache *cache, TexturePageCacheEntr
         free(entry->pixels_xdr);
         entry->pixels_xdr = NULL;
     }
-
-    entry->rsx_handle = NULL;
-
     if (cache->used_bytes >= entry->size) {
         cache->used_bytes -= entry->size;
     } else {
@@ -623,7 +647,6 @@ static TexturePageCacheEntry *TexturePageCache_get(TexturePageCache *cache, Data
     slot->width = loaded.width;
     slot->height = loaded.height;
     slot->last_used = ++cache->tick;
-    slot->rsx_handle = NULL;
     slot->loaded = true;
 
     cache->used_bytes += loaded.size;
@@ -697,7 +720,14 @@ static void TexturePageCache_preloadRoom(TexturePageCache *cache, DataWin *dw, R
 
 void SoftRenderer_TextureCacheInit(void)
 {
+    if (g_textureCacheInitCount > 0u)
+    {
+        g_textureCacheInitCount++;
+        return;
+    }
+
     TexturePageCache_init(&g_textureCache);
+    g_textureCacheInitCount = 1u;
 }
 
 void SoftRenderer_TextureCacheWarmStart(DataWin *dw)
@@ -707,6 +737,17 @@ void SoftRenderer_TextureCacheWarmStart(DataWin *dw)
 
 void SoftRenderer_TextureCacheDestroy(void)
 {
+    if (g_textureCacheInitCount == 0u)
+    {
+        return;
+    }
+
+    g_textureCacheInitCount--;
+    if (g_textureCacheInitCount > 0u)
+    {
+        return;
+    }
+
     TexturePageCache_destroy(&g_textureCache);
 }
 

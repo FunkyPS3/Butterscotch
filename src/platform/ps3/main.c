@@ -12,18 +12,22 @@
 #include <io/pad.h>
 #include <sysutil/sysutil.h>
 
-#include "rsxutils.h"
+#include "rsx/rsxutil.h"
 #include "data_win.h"
 #include "vm.h"
 #include "runner.h"
-#include "include/soft_renderer.h"
-#include "ps3_time.h"
+#include "renderer/soft_renderer.h"
+#include "sys/ps3_time.h"
 #include "runner_keyboard.h"
 #include "noop_file_system.h"
-#include "pad.h"
-#include "include/log.h"
+#include "input/pad_mapping.h"
+#include "core/log.h"
+#include "rsx/rsx_loading_screen.h"
 
-#define PS3_DATA_WIN_PATH "/dev_hdd0/game/CELL00001/USRDIR/data.win"
+#ifndef PS3_DATA_WIN_PATH
+#define PS3_DATA_WIN_PATH "/dev_hdd0/game/DEFAULT/USRDIR/data.win"
+#endif
+
 #define MAX_BUFFERS 2
 
 static const int PAD_MAPPING_COUNT = sizeof(PAD_MAPPINGS) / sizeof(PAD_MAPPINGS[0]);
@@ -38,13 +42,6 @@ static void loadingCallback(const char *chunkName, int chunkIndex, int totalChun
     {
         fprintf(stderr, "Loading chunk %d/%d: %s\n", chunkIndex + 1, totalChunks, chunkName);
     }
-}
-
-static void clearBuffer(rsxBuffer *buffer, uint32_t color)
-{
-    uint32_t count = (uint32_t)(buffer->width * buffer->height);
-    for (uint32_t i = 0; i < count; i++)
-        buffer->ptr[i] = color;
 }
 
 static double getTimeSeconds(void)
@@ -118,6 +115,57 @@ static void sysutil_callback(u64 status, u64 param, void *usrdata)
     }
 }
 
+static void loading_step(LoadingScreen *loading,
+                         gcmContextData *context,
+                         rsxBuffer *buffers,
+                         int *currentBuffer,
+                         u16 width,
+                         u16 height,
+                         const char *status,
+                         float progress)
+{
+    LoadingScreen_setStatus(loading, status, progress);
+    LoadingScreen_render(loading, context, &buffers[*currentBuffer], width, height);
+    waitFlip();
+    flip(context, buffers[*currentBuffer].id);
+    *currentBuffer ^= 1;
+}
+
+static Renderer *createPlatformRenderer(DataWin *dataWin, gcmContextData *context)
+{
+    (void)context;
+    fprintf(stderr, "PS3: using SoftRenderer backend\n");
+    return SoftRenderer_create(dataWin);
+}
+
+static void preloadRendererRoom(Renderer *renderer, Room *room)
+{
+    SoftRenderer_preloadRoom(renderer, room);
+}
+
+static void bindRendererBuffer(Renderer *renderer,
+                               rsxBuffer *buffer,
+                               int width,
+                               int height,
+                               int gameWidth,
+                               int gameHeight)
+{
+    SoftRenderer_setBuffer(renderer, buffer->ptr, width, height, gameWidth, gameHeight);
+}
+
+static void destroyRenderer(Renderer *renderer)
+{
+    if (renderer == NULL)
+    {
+        return;
+    }
+
+    if (renderer->vtable != NULL && renderer->vtable->destroy != NULL)
+    {
+        renderer->vtable->destroy(renderer);
+    }
+}
+
 int main(void)
 {
     sysUtilRegisterCallback(0, sysutil_callback, NULL);
@@ -149,30 +197,40 @@ int main(void)
 
     int currentBuffer = 0;
     flip(context, MAX_BUFFERS - 1);
-
+    LoadingScreen loading;
+    LoadingScreen_init(&loading, "Butterscotch4PS3");
     ioPadInit(7);
+
+    loading_step(&loading, context, buffers, &currentBuffer, width, height,
+                 "Loading data.win...", 0.20f);
 
     DataWin *dataWin = loadDataWin();
 
     if (!dataWin)
     {
+        loading_step(&loading, context, buffers, &currentBuffer, width, height,
+                     "Failed to load data.win", 0.10f);
         logger("Butterscotch", "FATAL: failed to load data.win");
         return 1;
     }
 
     // Create a VM and a runner
     logger(dataWin->gen8.displayName, "Creating VM and runner...");
+    loading_step(&loading, context, buffers, &currentBuffer, width, height,
+                 "Creating VM and runner...", 0.50f);
     FileSystem *fs = NoopFileSystem_create();
     VMContext *vm = VM_create(dataWin);
     Runner *runner = Runner_create(dataWin, vm, fs);
+    loading_step(&loading, context, buffers, &currentBuffer, width, height,
+                 "Launching game...", 0.90f);
 
     // Attach a renderer
-    Renderer *renderer = SoftRenderer_create(dataWin);
+    Renderer *renderer = createPlatformRenderer(dataWin, context);
     runner->renderer = renderer;
 
     // Initialize the first room before entering the main loop
     Runner_initFirstRoom(runner);
-    SoftRenderer_preloadRoom(renderer, runner->currentRoom);
+    preloadRendererRoom(renderer, runner->currentRoom);
 
     int32_t lastPreloadedRoomIndex = runner->currentRoomIndex;
 
@@ -226,17 +284,17 @@ int main(void)
 
         if (runner->currentRoomIndex != lastPreloadedRoomIndex)
         {
-            SoftRenderer_preloadRoom(renderer, runner->currentRoom);
+            preloadRendererRoom(renderer, runner->currentRoom);
             lastPreloadedRoomIndex = runner->currentRoomIndex;
         }
 
         // Render the frame
-        SoftRenderer_setBuffer(renderer,
-                               buffers[currentBuffer].ptr,
-                               width,
-                               height,
-                               dataWin->gen8.defaultWindowWidth,
-                               dataWin->gen8.defaultWindowHeight);
+        bindRendererBuffer(renderer,
+                           &buffers[currentBuffer],
+                           width,
+                           height,
+                           dataWin->gen8.defaultWindowWidth,
+                           dataWin->gen8.defaultWindowHeight);
 
         renderer->vtable->beginFrame(renderer,
                                      dataWin->gen8.defaultWindowWidth,
@@ -326,9 +384,8 @@ int main(void)
         }
     }
 
-    // ===[ Cleanup ]===
     logger("Butterscotch", "Exiting main loop, cleaning up...");
-    SoftRenderer_destroy(renderer);
+    destroyRenderer(renderer);
     DataWin_free(dataWin);
     NoopFileSystem_destroy(fs);
     ioPadEnd();
