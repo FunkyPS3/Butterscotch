@@ -68,7 +68,7 @@ HOST_TXTR_TOOL_SOURCES := \
 	$(PROJECT_ROOT)/src/data/data_win.c \
 	$(PROJECT_ROOT)/src/platform/ps3/stb_impl.c
 
-CFLAGS      := -O2 -Wall -mcpu=cell -Wextra -mcpu=cell -mhard-float \
+CFLAGS      := -O2 -Wall -Wextra -mcpu=cell -mhard-float \
                -fmodulo-sched -ffunction-sections -fdata-sections -fno-builtin \
                -D__PPU__ -D__PS3__ -D__CELLOS_LV2__ \
 			   -DPS3_DATA_WIN_PATH=\"/dev_hdd0/game/$(APPID)/USRDIR/data.win\" \
