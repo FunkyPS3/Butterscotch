@@ -63,15 +63,14 @@ CXXFLAGS    := $(CFLAGS)
 
 LDFLAGS     := $(MACHDEP) -mcpu=cell -mhard-float -Wl,-Map,$(notdir $@).map
 
-PS3GL_LOCAL_LIB := $(PROJECT_ROOT)/ps3gl/libPS3GL.a
+PS3GL_LOCAL_LIB := $(PROJECT_ROOT)/libs/ps3gl/libPS3GL.a
+
 ifeq ($(wildcard $(PS3GL_LOCAL_LIB)),)
-PS3GL_LINK := -lPS3GL
-else
-PS3GL_LINK := $(PS3GL_LOCAL_LIB)
+$(error Missing PS3GL library at $(PS3GL_LOCAL_LIB))
 endif
 
-LIBS        := $(PS3GL_LINK) -lsimdmath -lrsx -lgcm_sys -lnet -lsysutil -lsysfs -lio -lm -lrt -llv2 -lc
-LIBDIRS     := $(PORTLIBS)
+LIBS := $(PS3GL_LOCAL_LIB) -lsimdmath -lrsx -lgcm_sys -lnet -lsysutil -lsysfs -lio -lm -lrt -llv2 -lc
+LIBDIRS := $(PORTLIBS)
 
 include $(PSL1GHT)/ppu_rules
 
